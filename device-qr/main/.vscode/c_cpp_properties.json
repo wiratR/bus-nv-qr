@@ -4,7 +4,8 @@
             "name": "Mac",
             "includePath": [
                 "/Users/wirat/Library/Arduino15/packages/esp8266/tools/**",
-                "/Users/wirat/Library/Arduino15/packages/esp8266/hardware/esp8266/2.6.3/**"
+                "/Users/wirat/Library/Arduino15/packages/esp8266/hardware/esp8266/2.6.3/**",
+                "/Users/wirat/Documents/Arduino/libraries/**"
             ],
             "forcedInclude": [],
             "macFrameworkPath": [
