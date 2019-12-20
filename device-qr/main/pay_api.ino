@@ -1,3 +1,4 @@
+#include <time.h>
 
 // function print result
 void printResult(FirebaseData &data)
@@ -79,7 +80,7 @@ void printResult(FirebaseData &data)
         }
     }
 }
-
+/*
 // sample test
 void testFirebase ()
 {
@@ -170,37 +171,73 @@ void testFirebase ()
     Serial.println("------------------------------------");
     Serial.println();
 }
+*/
+// sent response device status to firebase
+int sentResponseDeviceStatus(int deviceId)
+{
+    // path for db 
+    //  dv_status
+    //    |--item_id
+    //        |--device_id  : 'deviceId'
+    //        |--datetime   : <yyyy/mm/dd hh:mm:ss>             'parameter is datetime_now'
+    //        |--status     : <In-Service>,<Out-Of-Service>     
+    //        |--recheck    : <0> default  
+    char deviceBuf[4];
+    sprintf (deviceBuf,"%4x",deviceId);         // convert to Hex 4 digits Eg. 1 --> 0001 , 10 ---> 000A
+    // get datetime is now
+    time_t now = time(nullptr);
+    struct tm* p_tm = localtime(&now);
+    char datetime_now[50];                      //50 chars should be enough
+    strftime(datetime_now, sizeof(datetime_now), "%A, %B %d %Y %H:%M:%S", p_tm);
+    String status = "In-Service";       // default
+    int recheck = 0;                    // default;
+    // DEBUG MESSAGE
+    Serial.print( "Result : " );
+    Serial.print( deviceBuf );          Serial.print( " - " );
+    Serial.print( datetime_now );       Serial.print( " - " );
+    Serial.print( status );             Serial.print( " - " );
+    Serial.print( recheck );            Serial.println("");
 
-// send device status
-int deviceStatus()
-{ 
-   // this path
-   // 
-   // 
-   //
-   String path = "/dv_status/";
+    // Set path for RDS on Firebase 
+    String path = "/dv_status/evt_bus_" + deviceBuf[0];
 
-   String 
+    String jsonStr = "";
+    FirebaseJson json1;
+    FirebaseJsonData jsonObj;
 
-  
-  FirebaseJson json;
-  FirebaseJson json2;
-  
-  json2.set("child_of_002", 123.456);
-  json.set("parent_001", "parent 001 text");
-  json.set("parent 002", json2);
-  
-  if (Firebase.pushJSON(data, "/test/append", json)) {
-    Serial.println(firebasedata.dataPath());
-    Serial.println(firebasedata.pushName());
-    Serial.println(firebasedata.dataPath() + "/"+ firebasedata.pushName());
-  }else {
-    Serial.println(firebasedata.errorReason());
-    return -1;
-  }
-  
-  return 0;
+    json1.set("device_id", deviceBuf);
+    json1.set("datetime", datetime_now);
+    json1.set("status", status);
+    json1.set("recheck", recheck );
+
+    // set firebaseDate to 
+    if ( !(Firebase.set(firebaseData, path, json1)) )
+    {
+        Serial.println("set firebase FAILED");
+        Serial.println("REASON: " + firebaseData.errorReason());
+    }
+
+
+    delay(1000);
+
+    return 0;
 }
+
+// check "/dv_status/{item_id}/recheck/{value}
+// if value = 1 need deive resrnt status
+int readRequestDevceiStatus(int deviceId)
+{
+    // Set path for RDS on Firebase
+    String path = "/dv_status/evt_bus_" + deviceBuf[0];
+
+    String jsonStr = "";
+    FirebaseJson json1;
+    FirebaseJsonData jsonObj;
+
+    json1.get(jsonObj, "This/is/[3]/my");
+    return 0;
+}
+
 
 // sent payment details 
 

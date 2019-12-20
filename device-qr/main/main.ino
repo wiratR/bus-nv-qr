@@ -30,6 +30,10 @@ TFT_eSPI tft = TFT_eSPI();
 #define FIREBASE_AUTH  "LCX6Yyh4A9wuURogU0fhN03MbsfvWiRF2Z9iSl3z"
 // ArdunioJson should be use version 5.x.x
 
+#define DV_STATUS      "dv_status"         // Firebase Realtime Database node to store 'dv_status'
+#define MAP_LOACTION   "map_location"      // Firebase Realtime Database node to store 'map_location'
+#define TX_USAGE       "tx_usage"          // Firebase Realtime Database node to store 'tx_usage'
+
 // Declare the Firebase Data object in global scope
 FirebaseData firebaseData;
 
@@ -38,6 +42,13 @@ void printResult(FirebaseData &data);
 String device_ip = "";
 String sw_version = "1.0.0";
 int device_number = 1;
+
+int timezone = 7 * 3600; //set up BKK - TimeZone (GMT +7)
+int dst = 0;             //set date swing time
+
+// SDCard should be add new PIN for SD_CS
+
+int display_mode  = 0;
 
 void setup() {
   // put your setup code here, to run once:
@@ -56,7 +67,16 @@ void setup() {
   Serial.print("connected: ");
   Serial.println(WiFi.localIP());
 
-  if (!SPIFFS.begin()) {
+  configTime(timezone, dst, "pool.ntp.org", "time.nist.gov"); //get time form server
+  Serial.println("\nLoading time");
+  while (!time(nullptr))
+  {
+    Serial.print("*");
+    delay(1000);
+  }
+
+  if (!SPIFFS.begin())
+  {
     Serial.println("SPIFFS initialisation failed!");
     while (1) yield(); // Stay here twiddling thumbs waiting
   }
@@ -67,28 +87,33 @@ void setup() {
   // Optional, set AP reconnection in setup()
   Firebase.reconnectWiFi(true);
 
-  testFirebase();
+  //testFirebase();
 
   // Now initialise the TFT
   tft.begin();
   tft.setRotation(1); // set lanscape
   tft.fillScreen(TFT_WHITE);
-  showScreen(0);      // reboting pages
-/*
-  if(deviceStatus(firebaseData) < 0 )
+  showScreen(display_mode); // reboting pages
+
+  if ( sentResponseDeviceStatus(device_number)  < 0 )
   {
-      Serial.println("\r\nsent device status failed.");
+      // write logs error 
+      Serial.println("sentResponseDeviceStatus failed");
+      display_mode = 4;   
   }
-  */
+  else{
+    display_mode = 1;
+  }
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-  for (uint8_t pages = 1; pages < 5; pages++) {
-    //drawBmp("/1.bmp", 0, 0);
-    showScreen(pages);
-    delay(3000);
-  }
+  //for (uint8_t pages = 1; pages < 5; pages++) {
+    showScreen(display_mode);
+    delay(1000);
+    if(re)
+
+  //}
 }
 
 
@@ -136,19 +161,19 @@ unsigned long showScreen(uint8_t pages) {
       }
       break;
     case 1:
-      // shows welcome screen
+      // welcome screen
       drawBmp("/1.bmp", 0, 0);
       break;
     case 2:
-      // shows Paymnet Sucess
+      // Paymnet Sucess
       drawBmp("/2.bmp", 0, 0);
       break;
     case 3:
-      // shows Paymnet Failed
+      // Paymnet Failed
       drawBmp("/3.bmp", 0, 0);
       break;
     case 4:
-      // show Out Of Service
+      // Out Of Service
       drawBmp("/4.bmp", 0, 0);
       break;
     default:
