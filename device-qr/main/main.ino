@@ -1,5 +1,6 @@
 #include "xbm.h"        // Sketch tab header for xbm images
-#include <SPI.h>
+#include <time.h>
+//#include <SPI.h>
 //====================================================================================
 //                                  Libraries
 //====================================================================================
@@ -17,29 +18,37 @@
 TFT_eSPI tft = TFT_eSPI();
 
 // Include Firebase ESP8266 library (this library)
-#include "FirebaseESP8266.h"
+#include <FirebaseESP8266.h>
 // Include ESP8266WiFi.h and must be included after FirebaseESP8266.h
+//#include <FirebaseArduino.h>
 #include <ESP8266WiFi.h>
 
 // Config connect WiFi
 #define WIFI_SSID "Bonny_2G_e00"
 #define WIFI_PASSWORD "1234BAll"
+//#define WIFI_SSID "Natty_2.4G"
+//#define WIFI_PASSWORD "Michang3"
 
 // Config Firebase
 #define FIREBASE_HOST  "qr-evt-db.firebaseio.com"
 #define FIREBASE_AUTH  "LCX6Yyh4A9wuURogU0fhN03MbsfvWiRF2Z9iSl3z"
 // ArdunioJson should be use version 5.x.x
 
-#define DV_STATUS      "dv_status"         // Firebase Realtime Database node to store 'dv_status'
-#define MAP_LOACTION   "map_location"      // Firebase Realtime Database node to store 'map_location'
-#define TX_USAGE       "tx_usage"          // Firebase Realtime Database node to store 'tx_usage'
+#define DV_STATUS      "/dv_status"         // Firebase Realtime Database node to store 'dv_status'
+#define MAP_LOACTION   "/map_location"      // Firebase Realtime Database node to store 'map_location'
+#define TX_USAGE       "/tx_usage"          // Firebase Realtime Database node to store 'tx_usage'
+
+//#define
 
 // Declare the Firebase Data object in global scope
 FirebaseData firebaseData;
 
+FirebaseJson json;
+
 void printResult(FirebaseData &data);
 
-String device_ip = "";
+
+char *device_ip;
 String sw_version = "1.0.0";
 int device_number = 1;
 
@@ -53,7 +62,7 @@ int display_mode  = 0;
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
-  
+
   WiFi.mode(WIFI_STA);
   // connect to wifi.
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -88,41 +97,50 @@ void setup() {
   Firebase.reconnectWiFi(true);
 
   //testFirebase();
-
   // Now initialise the TFT
   tft.begin();
   tft.setRotation(1); // set lanscape
   tft.fillScreen(TFT_WHITE);
   showScreen(display_mode); // reboting pages
 
-  if ( sentResponseDeviceStatus(device_number)  < 0 )
+  if (sentResponseDeviceStatus(device_number, device_ip, 1) < 0)
   {
-      // write logs error 
-      Serial.println("sentResponseDeviceStatus failed");
-      display_mode = 4;   
+    // write logs error
+    Serial.println("sentResponseDeviceStatus failed");
+    display_mode = 4;   // out of Service
   }
-  else{
-    display_mode = 1;
+  else {
+    display_mode = 1;     // welcome screen
   }
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
   //for (uint8_t pages = 1; pages < 5; pages++) {
-    showScreen(display_mode);
-    delay(1000);
-    if(re)
+  showScreen(display_mode);
+  delay(1000);
+  // process --- get request device status from firebase
+  /*
+    if (readRequestDevceiStatus( device_number ) == 1)
+    {
+    if (sentResponseDeviceStatus(device_number, device_ip) < 0)
+    {
+      // write logs error
+      Serial.println("sentResponseDeviceStatus failed");
+      display_mode = 4;
+    }
+    }
+  */
+
 
   //}
 }
 
-
-String ip2Str(IPAddress ip){
-  String s;
-  for (int i=0; i<4; i++) {
-    s += i  ? "." + String(ip[i]) : String(ip[i]);
-  }
-  return s;
+char *ip2CharArray(IPAddress ip)
+{
+  static char a[16];
+  sprintf(a, "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
+  return a;
 }
 
 unsigned long showScreen(uint8_t pages) {
@@ -134,10 +152,10 @@ unsigned long showScreen(uint8_t pages) {
       // shows deviceId
       // show software version
       // (on right side)
-      // shows bar status loadiing   
+      // shows bar status loadiing
       // get deivce IP
-      device_ip = ip2Str(WiFi.localIP());
-       
+      device_ip = ip2CharArray(WiFi.localIP());
+
       tft.setCursor(160, 10);
       tft.setTextColor(TFT_BLACK);   tft.setTextSize(1);
       // print IP address
