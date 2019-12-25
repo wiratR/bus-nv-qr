@@ -9,14 +9,10 @@
 #include <FirebaseESP32.h>
 #include <time.h>
 
-#define FIREBASE_HOST   "qr-evt-db.firebaseio.com"
-#define FIREBASE_AUTH   "LCX6Yyh4A9wuURogU0fhN03MbsfvWiRF2Z9iSl3z"
-//#define WIFI_SSID       "Vix_Guest"
-//#define WIFI_PASSWORD   "Committed-Honest-Passionate"
-//#define WIFI_SSID       "Bon iPhone"
-//#define WIFI_PASSWORD   "1234BAll"
-#define WIFI_SSID       "Bonny_2G_e00"
-#define WIFI_PASSWORD   "1234BAll"
+#define FIREBASE_HOST "<FIREBASE_HOST>"
+#define FIREBASE_AUTH "<FIREBASE_AUTH>"
+#define WIFI_SSID     "<YOUR_WIFI_NAME>"
+#define WIFI_PASSWORD "<YOUR_WIFI_PASSWORD>"
 
 // Define NTP Client to get time
 WiFiUDP ntpUDP;
@@ -25,7 +21,7 @@ NTPClient timeClient(ntpUDP);
 // unwiredlabs Hostname & Geolocation Endpoint url
 // refer :: https : //circuitdigest.com/microcontroller-projects/how-to-track-location-with-nodemcu-using-google-map-api
 #include <WifiLocation.h>
-const char *googleApiKey = "AIzaSyDTuLll4kYce8bLICQ6-dL81QIGPsk3kRQ"; //" your api key ";
+const char *googleApiKey = "<your api key>";
 WifiLocation location(googleApiKey);
 
 // Variables to save date and time
