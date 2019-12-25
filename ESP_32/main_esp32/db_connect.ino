@@ -1,6 +1,7 @@
+
+
 void printResult(FirebaseData &data)
 {
-
     if (data.dataType() == "int")
         Serial.println(data.intData());
     else if (data.dataType() == "float")
@@ -79,9 +80,41 @@ void printResult(FirebaseData &data)
     }
 }
 
+
+
 // sent response device status to firebase
-int sentResponseDeviceStatus(int deviceId, char *IPAddr, int status_mode)
+int sentResponseDeviceStatus(int status_mode )
 {
+    if (!Firebase.beginStream(firebaseData1, path_dv_staus))
+    {
+        Serial.println("-------------------------------------------------------------");
+        Serial.println("sentResponseDeviceStatus() : Can't begin stream connection...");
+        Serial.println("REASON: " + firebaseData1.errorReason());
+        Serial.println("--------------------------------------------------------------");
+        Serial.println();
+        return -1;
+    }
+
+    delay(100);
+
+    if (!Firebase.readStream(firebaseData1))
+    {
+        Serial.println("--------------------------------------------------------");
+        Serial.println("sentResponseDeviceStatus() : Can't read stream data");
+        Serial.println("REASON: " + firebaseData1.errorReason());
+        Serial.println("-------------------------------------------------------");
+        Serial.println();
+        return -1;
+    }
+
+    if (firebaseData1.streamTimeout())
+    {
+        Serial.println("Stream timeout, resume streaming...");
+        Serial.println();
+    }
+
+    FirebaseJson json_dv_staus;
+    // add node for update device status
     // path for db
     //  dv_status
     //    |--item_id
@@ -89,107 +122,202 @@ int sentResponseDeviceStatus(int deviceId, char *IPAddr, int status_mode)
     //        |--datetime   : <yyyy/mm/dd hh:mm:ss>             'parameter is datetime_now'
     //        |--status     : <In-Service>,<Out-Of-Service>
     //        |--recheck    : <0> default
-    char deviceBuf[5];
-    int isNewDevice = 0;
-    sprintf(deviceBuf, "%04X", deviceId); // convert to Hex 4 digits Eg. 1 --> 0001 , 10 ---> 000A
-    // get datetime is now
-    char datetime_buf[sizeof "1980-01-01T12:34:56.789Z"];
-    time_t rawtime;
-    struct tm *timeInfo;
-    time(&rawtime);
-    timeInfo = localtime(&rawtime);
-    snprintf(datetime_buf, sizeof datetime_buf, "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ",
-             timeInfo->tm_year + 1900,
-             timeInfo->tm_mon + 1,
-             timeInfo->tm_mday,
-             timeInfo->tm_hour,
-             timeInfo->tm_min,
-             timeInfo->tm_sec,
-             0);
+    //        |--location
+    //              |--latitude   :
+    //              |--longitude  :
+    //              |--accuracy   :
+    json_dv_staus.add("device_id", String(device_ip))
+        .add("datetime", String(formattedDate))
+        .add("status", "In-Service")
+        .add("recheck", "0")
+        .add("/location/latitude", String(dv_location.lat, 7))
+        .add("/location/longitude", String(dv_location.lon, 7))
+        .add("/location/accuracy", String(dv_location.accuracy));
 
-    char item_id[50];
-    sprintf(item_id, "evt_bus_%s", deviceBuf); // set item_id is 'evt_bus_dddd'
-
-    if (!Firebase.beginStream(firebaseData, DV_STATUS))
+    if (Firebase.updateNode(firebaseData1, path_dv_staus, json_dv_staus))
     {
-        Serial.println("------------------------------------");
-        Serial.println("Can't begin stream connection...");
-        Serial.println("REASON: " + firebaseData.errorReason());
-        Serial.println("------------------------------------");
-        Serial.println();
-        return -1;
-    }
-
-    char status_item_id[100];
-    sprintf(status_item_id, "%s/%s", DV_STATUS, deviceBuf); // '/dv_satuas/evt_bus_dddd'
-
-    char *temp_status;
-    switch (status_mode)
-    {
-    case 1:
-        temp_status = "In-Service";
-        break;
-    default:
-        temp_status = "Out-Of-Service";
-        break;
-    }
-
-    //Declare FirebaseJson object (global or local)
-    FirebaseJson json;
-
-    json.set("/deviceId", String(IPAddr));
-    json.set("/datetime", String(datetime_buf));
-    json.set("/status", String(temp_status));
-    json.set("/recheck", "0");
-
-    if (!Firebase.beginStream(firebaseData, status_item_id))
-    {
-        Serial.println("------------------------------------");
-        Serial.println("Can't begin stream connection...");
-        Serial.println("REASON: " + firebaseData.errorReason());
-        Serial.println("------------------------------------");
-        Serial.println();
-        isNewDevice = 1;
-    }
-
-    if (isNewDevice != 0)
-    {
-        Serial.println("-------------------------------------");
-        Serial.println("Add new device status..");
-        Serial.println("-------------------------------------");
-        // Insert a new item_id to '/dv_status/item_id/'
-        // firebaseData is still /dv_satuas
-        if (Firebase.pushJSON(firebaseData, status_item_id, json))
+        if (more_text)
         {
-            Serial.println("PASSED");
-            Serial.println("PATH: " + firebaseData.dataPath());
-            Serial.print("PUSH NAME: ");
-            Serial.println(firebaseData.pushName());
-            Serial.println("ETag: " + firebaseData.ETag());
-            Serial.println("------------------------------------");
+            Serial.println("--------------------------------------------------------");
+            Serial.println("sentResponseDeviceStatus() : updatenode with details");
+            Serial.println("PATH: " + firebaseData1.dataPath());
+            Serial.println("TYPE: " + firebaseData1.dataType());
+            Serial.print("VALUE: ");
+            printResult(firebaseData1);
+            Serial.println("------------------------------------------------------");
             Serial.println();
         }
     }
     else
     {
-        Serial.println("-------------------------------------");
-        Serial.print("Update device : ");
-        Serial.println(item_id);
-        Serial.println("-------------------------------------");
-        // update on node '/dv_status/item_id/'
-        if (Firebase.updateNode(firebaseData, status_item_id, json))
-        {
-            Serial.println(firebaseData.dataPath());
-            Serial.println(firebaseData.dataType());
-            Serial.println(firebaseData.jsonString());
-        }
-        else
-        {
-            Serial.println(firebaseData.errorReason());
-        }
+        Serial.println("--------------------------------------------------------");
+        Serial.println("sentResponseDeviceStatus() : updateNode() failed");
+        Serial.println("REASON: " + firebaseData1.errorReason());
+        Serial.println("--------------------------------------------------------");
+        Serial.println();
+        return -1;
     }
 
-    delay(500);
+    return 0;  // done;
+}
 
-    return 0;
+// =======================================================================
+// this function implement for get 'recheck' to Firebase 'dv_staus'to RDS
+// ======================================================================
+int getRecheckStaus()
+{
+    String ret = "";
+
+    if (!Firebase.beginStream(firebaseData1, path_dv_staus))
+    {
+        Serial.println("---------------------------------------------------------");
+        Serial.println("getRecheckStaus() : Can't begin stream connection...");
+        Serial.println("REASON: " + firebaseData1.errorReason());
+        Serial.println("---------------------------------------------------------");
+        Serial.println();
+        return -1;
+    }
+
+    delay(100);
+    
+    if (!Firebase.readStream(firebaseData1))
+    {
+        Serial.println("--------------------------------------------------------");
+        Serial.println("getRecheckStaus() : Can't read stream data");
+        Serial.println("REASON: " + firebaseData1.errorReason());
+        Serial.println("-------------------------------------------------------");
+        Serial.println();
+        return -1;
+    }
+
+    if (firebaseData1.streamTimeout())
+    {
+        Serial.println("Stream timeout, resume streaming...");
+        Serial.println();
+    }
+
+    if (!Firebase.getString(firebaseData1, path_dv_staus + "/recheck", ret))
+    {
+        Serial.println("--------------------------------------------------------");
+        Serial.println("sentResponseDeviceStatus() : updateNode() failed");
+        Serial.println("REASON: " + firebaseData1.errorReason());
+        Serial.println("--------------------------------------------------------");
+        Serial.println();
+        return -1;
+    }
+
+    //Firebase.getString(firebaseData1, path_dv_staus + "/recheck", result);
+
+    if(ret!= "")
+        return ret.toInt();
+    else
+       return -1;
+}
+
+// =============================================================
+// this function implement for set Payment to Firebase to RDS
+// ============================================================
+int sentPay(String paymentCode, int paymentValue, int txn_type)
+{
+    char deviceBuf[4];
+    sprintf(deviceBuf, "%04X", device_number); // convert to Hex 4 digits Eg. 1 --> 0001 , 10 ---> 000A
+    FirebaseJson json_txn_usage;
+    String strDate = convertStrToFileName(dayStamp, 1);
+    String strTime = convertStrToFileName(timeStamp, 2);
+    // "/txn_usage/TP_yyyymmdd_hhmmss_dddddd.dat"
+    String path_txn_id = TX_USAGE + String("/TP_") +
+                         String(strDate) + "_" + String(strTime) + "_" +
+                         String(deviceBuf[0]) + String(deviceBuf[1]) +
+                         String(deviceBuf[2]) + String(deviceBuf[3]) + "_dat";
+
+    Serial.println("sentPay() : sent to node " + path_txn_id);
+
+    if (!Firebase.beginStream(firebaseData2, path_txn_id))
+    {
+        Serial.println("------------------------------------");
+        Serial.println("sentPay() : Can't begin stream connection...");
+        Serial.println("REASON: " + firebaseData2.errorReason());
+        Serial.println("------------------------------------");
+        Serial.println();
+        return -1;
+    }
+
+    if (!Firebase.readStream(firebaseData2))
+    {
+        Serial.println("-----------------------------------------------");
+        Serial.println("sentPay() : Can't read stream data");
+        Serial.println("REASON: " + firebaseData2.errorReason());
+        Serial.println("-----------------------------------------------");
+        Serial.println();
+        return -1;
+    }
+
+    if (firebaseData2.streamTimeout())
+    {
+        Serial.println("Stream timeout, resume streaming...");
+        Serial.println();
+    }
+
+    // path for db
+    //  txn_usage
+    //    |--item_id                             'TP_yyyymmdd_hhmmss_dddddd.dat'
+    //        |--device_id      : 'deviceId'       'parameter is IPAddr'
+    //        |--device_type    : '15'             'ENV_BUS'
+    //        |--location_code  : '0'
+    //        |--location
+    //              |--latitude   :
+    //              |--longitude  :
+    //              |--accuracy   :
+    //        |--payment
+    //              |--passenger_count : '1'
+    //              |--passenger_id    : 'uuuuuuuuuuuu'   <read from QR>
+    //              |--type            : '1'              <Pay-By-TrueMoney>
+    //              |--value           : '20000'          <Satang>
+    //        |--txn_date              : <yyyy/mm/dd>
+    //        |--txn_time              : <hh:mm:ss>
+    //        |--txn_status            : '200'            <200 requests,404 https not found,
+    //        |--txn_type              : '1'              <1 Payment,2 void>
+
+    json_txn_usage
+        .add("device_id"                    , String(device_ip))
+        .add("device_type"                  , "15")
+        .add("location_code"                , "0")
+        .add("/location/latitude"           , String(dv_location.lat, 7))
+        .add("/location/longitude"          , String(dv_location.lon, 7))
+        .add("/location/accuracy"           , String(dv_location.accuracy))
+        .add("/payment/passenger_count"     , "1")
+        .add("/payment/passenger_id"        , paymentCode)
+        .add("/payment/type"                , "1")
+        .add("/payment/value"               , String(paymentValue))
+        .add("txn_date"                     , dayStamp)
+        .add("txn_time"                     , timeStamp)
+        .add("txn_status"                   , "200")
+        .add("txn_type"                     , "payment");
+
+    if (Firebase.updateNode(firebaseData2, path_txn_id, json_txn_usage))
+    {
+        if (more_text)
+        {
+            Serial.println("-----------------------------------------------");
+            Serial.println("sentPay() : updatenode with details");
+            Serial.println("PATH: " + firebaseData2.dataPath());
+            Serial.println("TYPE: " + firebaseData2.dataType());
+            Serial.print("VALUE: ");
+            printResult(firebaseData2);
+            Serial.println("-----------------------------------------------");
+            Serial.println();
+        }
+    }
+    else
+    {
+        Serial.println("--------------------------------------------------");
+        Serial.println("sentPay() : updateNode() failed");
+        Serial.println("REASON: " + firebaseData2.errorReason());
+        Serial.println("--------------------------------------------------");
+        Serial.println();
+        return -1;
+    }
+    // get new time
+
+    return -1;
 }
