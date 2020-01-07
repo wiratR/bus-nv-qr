@@ -7,9 +7,11 @@
 // Call up the SPIFFS FLASH filing system this is part of the ESP Core
 #define FS_NO_GLOBALS
 #include <FS.h>
+/*
 #ifdef ESP32
 #include "SPIFFS.h"   // For ESP32 only
 #endif
+*/
 
 // Call up the TFT library
 #include <TFT_eSPI.h>   // Hardware-specific library for ESP8266

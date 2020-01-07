@@ -126,13 +126,22 @@ int sentResponseDeviceStatus(int status_mode )
     //              |--latitude   :
     //              |--longitude  :
     //              |--accuracy   :
-    json_dv_staus.add("device_id", String(device_ip))
-        .add("datetime", String(formattedDate))
-        .add("status", "In-Service")
-        .add("recheck", "0")
-        .add("/location/latitude", String(dv_location.lat, 7))
+
+
+    String strMode = "";
+
+    if(status_mode == 1)
+        strMode = "In-Service";
+    if(status_mode == 2)
+        strMode = "Out-Off-Service";
+
+    json_dv_staus.add("device_id",  String(device_ip))
+        .add("datetime",            String(formattedDate))
+        .add("status",              strMode)
+        .add("recheck",             "0")
+        .add("/location/latitude",  String(dv_location.lat, 7))
         .add("/location/longitude", String(dv_location.lon, 7))
-        .add("/location/accuracy", String(dv_location.accuracy));
+        .add("/location/accuracy",  String(dv_location.accuracy));
 
     if (Firebase.updateNode(firebaseData1, path_dv_staus, json_dv_staus))
     {
@@ -206,8 +215,6 @@ int getRecheckStaus()
         return -1;
     }
 
-    //Firebase.getString(firebaseData1, path_dv_staus + "/recheck", result);
-
     if(ret!= "")
         return ret.toInt();
     else
@@ -217,7 +224,7 @@ int getRecheckStaus()
 // =============================================================
 // this function implement for set Payment to Firebase to RDS
 // ============================================================
-int sentPay(String paymentCode, int paymentValue, int txn_type)
+int sentPay(String paymentCode, int paymentValue, int passenger_count, String txn_type)
 {
     char deviceBuf[4];
     sprintf(deviceBuf, "%04X", device_number); // convert to Hex 4 digits Eg. 1 --> 0001 , 10 ---> 000A
@@ -234,10 +241,10 @@ int sentPay(String paymentCode, int paymentValue, int txn_type)
 
     if (!Firebase.beginStream(firebaseData2, path_txn_id))
     {
-        Serial.println("------------------------------------");
+        Serial.println("--------------------------------------------");
         Serial.println("sentPay() : Can't begin stream connection...");
         Serial.println("REASON: " + firebaseData2.errorReason());
-        Serial.println("------------------------------------");
+        Serial.println("--------------------------------------------");
         Serial.println();
         return -1;
     }
@@ -271,12 +278,12 @@ int sentPay(String paymentCode, int paymentValue, int txn_type)
     //        |--payment
     //              |--passenger_count : '1'
     //              |--passenger_id    : 'uuuuuuuuuuuu'   <read from QR>
-    //              |--type            : '1'              <Pay-By-TrueMoney>
+    //              |--type            : 'T-Wallet'       <Pay-By-TrueMoney>
     //              |--value           : '20000'          <Satang>
     //        |--txn_date              : <yyyy/mm/dd>
     //        |--txn_time              : <hh:mm:ss>
     //        |--txn_status            : '200'            <200 requests,404 https not found,
-    //        |--txn_type              : '1'              <1 Payment,2 void>
+    //        |--txn_type              : 'Payment'        <1 Payment,2 void>
 
     json_txn_usage
         .add("device_id"                    , String(device_ip))
@@ -285,14 +292,14 @@ int sentPay(String paymentCode, int paymentValue, int txn_type)
         .add("/location/latitude"           , String(dv_location.lat, 7))
         .add("/location/longitude"          , String(dv_location.lon, 7))
         .add("/location/accuracy"           , String(dv_location.accuracy))
-        .add("/payment/passenger_count"     , "1")
-        .add("/payment/passenger_id"        , paymentCode)
-        .add("/payment/type"                , "1")
+        .add("/payment/passenger_count"     , String(passenger_count))
+        .add("/payment/passenger_id"        , paymentCode)                  // T-Wallet IDss
+        .add("/payment/type"                , "T-Wallet")
         .add("/payment/value"               , String(paymentValue))
         .add("txn_date"                     , dayStamp)
         .add("txn_time"                     , timeStamp)
         .add("txn_status"                   , "200")
-        .add("txn_type"                     , "payment");
+        .add("txn_type"                     , txn_type);
 
     if (Firebase.updateNode(firebaseData2, path_txn_id, json_txn_usage))
     {
@@ -317,7 +324,6 @@ int sentPay(String paymentCode, int paymentValue, int txn_type)
         Serial.println();
         return -1;
     }
-    // get new time
 
     return -1;
 }
