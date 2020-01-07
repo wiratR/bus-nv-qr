@@ -5,3 +5,4 @@ device-qr/main/.vscode/c_cpp_properties.json
 device-qr/main/.vscode/c_cpp_properties.json
 *.json
 ESP_32/key.txt
+device-qr/main/src/config/projectsKey.h

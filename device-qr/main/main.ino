@@ -25,15 +25,15 @@ TFT_eSPI tft = TFT_eSPI();
 //#include <FirebaseArduino.h>
 #include <ESP8266WiFi.h>
 
+#include "src/config/projectsKey.h"
+
 // Config connect WiFi
-#define WIFI_SSID "Bonny_2G_e00"
-#define WIFI_PASSWORD "1234BAll"
-//#define WIFI_SSID "Natty_2.4G"
-//#define WIFI_PASSWORD "Michang3"
+#define WIFI_SSID       _myssid     
+#define WIFI_PASSWORD   _mypassword 
 
 // Config Firebase
-#define FIREBASE_HOST  "qr-evt-db.firebaseio.com"
-#define FIREBASE_AUTH  "LCX6Yyh4A9wuURogU0fhN03MbsfvWiRF2Z9iSl3z"
+#define FIREBASE_HOST   _firebase_host
+#define FIREBASE_AUTH   _firebase_auth
 // ArdunioJson should be use version 5.x.x
 
 #define DV_STATUS      "/dv_status"         // Firebase Realtime Database node to store 'dv_status'
@@ -203,3 +203,18 @@ unsigned long showScreen(uint8_t pages) {
   }
   return micros() - start;
 }
+
+// Hardware Config
+// TFT_screen <---> ESP8266 board
+// We must use hardware SPI, a minimum of 3 GPIO pins is needed.
+// Typical setup for ESP8266 NodeMCU ESP-12 is :
+//
+// Display SDO/MISO  to NodeMCU pin D6 (or leave disconnected if not reading TFT)
+// Display LED       to NodeMCU pin VIN (or 5V, see below)
+// Display SCK       to NodeMCU pin D5
+// Display SDI/MOSI  to NodeMCU pin D7
+// Display DC (RS/AO)to NodeMCU pin D3
+// Display RESET     to NodeMCU pin D4 (or RST, see below)
+// Display CS        to NodeMCU pin D8 (or GND, see below)
+// Display GND       to NodeMCU pin GND (0V)
+// Display VCC       to NodeMCU 5V or 3.3V
