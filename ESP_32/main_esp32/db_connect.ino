@@ -221,9 +221,9 @@ int getRecheckStaus()
        return -1;
 }
 
-// =============================================================
+// ======================================================================================
 // this function implement for set Payment to Firebase to RDS
-// ============================================================
+// =====================================================================================
 int sentPay(String paymentCode, int paymentValue, int passenger_count, String txn_type)
 {
     char deviceBuf[4];

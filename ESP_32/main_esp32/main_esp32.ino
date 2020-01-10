@@ -80,6 +80,10 @@ void setup()
     // Hardware initail
     // =============================================================
     Serial.begin(115200);
+    //swSer.begin(BAUD_RATE, SWSERIAL_8N1, D5, D6, false, 95, 11);
+    swSer.begin(BAUD_RATE, SWSERIAL_8N1, D1, D2, false, 95, 11);
+
+    //Serial.println("\nSoftware serial test started ======= ");
     // =============================================================
     // WiFi initialised
     // =============================================================
@@ -138,6 +142,7 @@ void setup()
     delay(300);
     
 }
+
 
 
 // ======================================================== 
@@ -203,19 +208,23 @@ void refreshDateTime()
     // The formattedDate comes with the following format:
     // 2018-05-28T16:00:13Z
     // We need to extract date and time
-    formattedDate = timeClient.getFormattedDate();
+    // formattedDate = timeClient.getFormattedDate();
+    
+    timeStamp = timeClient.getFormattTime();
+    
     // Extract date
-    int splitT = formattedDate.indexOf("T");
-    dayStamp = formattedDate.substring(0, splitT);          // yyyy-mm-dd
+    //int splitT  = formattedDate.indexOf("T");
+    //dayStamp    = formattedDate.substring(0, splitT);          // yyyy-mm-dd
     // Extract time
-    timeStamp = formattedDate.substring(splitT + 1, formattedDate.length() - 1); // 
-//    Serial.println(timeStamp);
+    // timeStamp   = formattedDate.substring(splitT + 1, formattedDate.length() - 1); // 
+    //  timeStamp = formattedTime.substring(0, splitT + 1)
+    //  Serial.println(timeStamp);
 
     if (more_text)
     {
         Serial.println("refreshDateTime() : ");
-        Serial.println("formattedDate : " + formattedDate);
-        Serial.println("dayStamp      : " + dayStamp);
+        //Serial.println("formattedDate : " + formattedDate);
+        //Serial.println("dayStamp      : " + dayStamp);
         Serial.println("timeStamp     : " + timeStamp);
     }
 }
