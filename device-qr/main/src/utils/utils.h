@@ -2,7 +2,12 @@
 #define UTILS_H
 
 #include "Arduino.h"
+
+#ifdef ESP8266
 #include <ESP8266WiFi.h>
+#else
+#include <WiFi.h>
+#endif
 #include <TFT_eSPI.h>
 
 class utils
@@ -11,6 +16,8 @@ class utils
         String IpAddress2String(IPAddress ipAddress);        
         String getTxName(String refPath, int deviceNumber, String datePattern, String timePattern);
         void drawBmp(const char *filename, int16_t x, int16_t y, TFT_eSPI tft);
+
+        
 
     private :
         String convertStrToFileName(String strIn, int type);

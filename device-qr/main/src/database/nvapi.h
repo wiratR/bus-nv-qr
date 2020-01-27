@@ -2,8 +2,14 @@
 #define NVAPI_H
 
 #include "Arduino.h"
-#include "FirebaseESP8266.h"
-#include <ESP8266WiFi.h>
+#ifdef ESP8266
+    #include <ESP8266WiFi.h>
+    #include "FirebaseESP8266.h"
+#else
+    #include <WiFi.h>
+    #include <FirebaseESP32.h>
+#endif
+
 #include "../utils/utils.h"
 #include "../utils/data_types.h"
 
@@ -66,8 +72,8 @@ class nvapi
             boolean         enableDebug
         );
 
-    private : void
-        printResult(FirebaseData &data);
+    private : 
+        void printResult(FirebaseData &data);
 };
 
 #endif
