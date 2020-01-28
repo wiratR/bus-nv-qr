@@ -14,6 +14,7 @@ int scb::payment(String qrData, String amount)
         return -1;
     }else
     {
+        // http post payment 
         Serial.println("payment() : get code = " + responseCode);
         Serial.println("payment() : get accessToken  = " + authToken);
     }
@@ -26,12 +27,12 @@ int scb::payment(String qrData, String amount)
 int scb::getAccessToken(String *accessToken)
 {
     // Generate a new UUID
-    ESPTrueRandom.uuid(scb::uuidNumber);
-    String uuidStr = ESPTrueRandom.uuidToString(scb::uuidNumber);
+    ESPTrueRandom.uuid(uuidNumber);
+    String uuidStr = ESPTrueRandom.uuidToString(uuidNumber);
 
     Serial.println("getAccessToken() : uuid      = " + uuidStr );
-    //Serial.println("getAccessToken() : apiKey    = " + SCB_API_KEY );
-    //Serial.println("getAccessToken() : apiSecret = " + SCB_API_SERECT);
+    Serial.println("getAccessToken() : apiKey    = " + String(SCB_API_KEY));
+    Serial.println("getAccessToken() : apiSecret = " + String(SCB_API_SERECT));
 
     if (WiFi.status() == WL_CONNECTED)
     { //Check WiFi connection status
@@ -40,17 +41,17 @@ int scb::getAccessToken(String *accessToken)
         String postMessage;
         const size_t capacity       = JSON_OBJECT_SIZE(2);
         DynamicJsonDocument doc(capacity);
-        doc["applicationKey"]       = "l7b315d5f8e95146f19da6cc579ed67f93" ;//SCB_API_KEY;
-        doc["applicationSecret"]    = "902af33a328149ff8900f4fb107024f8";
+        doc["applicationKey"]       = SCB_API_KEY; //SCB_API_KEY;
+        doc["applicationSecret"]    = SCB_API_SERECT;
         serializeJson(doc, Serial);
         serializeJson(doc, postMessage);
 
         http.begin("https://api-sandbox.partners.scb/partners/sandbox/v1/oauth/token"); //Specify destination for HTTP request
 
-        http.addHeader("Content-Type"   , "application/json");
-        http.addHeader("accept-language", "EN");
-        http.addHeader("requestUId"     , uuidStr);
-        http.addHeader("resourceOwnerId", "l7b315d5f8e95146f19da6cc579ed67f93");
+        http.addHeader("Content-Type"   ,   "application/json");
+        http.addHeader("accept-language",   "EN");
+        http.addHeader("requestUId"     ,   uuidStr);
+        http.addHeader("resourceOwnerId",   SCB_API_SERECT);
 
         int httpCode = http.POST(postMessage);
 

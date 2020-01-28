@@ -2,6 +2,7 @@
 #define SCB_H
 
 
+
 #include "Arduino.h"
 #include "ArduinoJson.h"
 // https://arduinojson.org/v6/assistant/
@@ -14,9 +15,7 @@
 
 #include <HTTPClient.h>
 #include "../utils/ESPTrueRandom.h"
-//#include "./scbConfig.h"
-
-byte uuidNumber[16]; // UUIDs in binary form are 16 bytes long
+#include "./scbConfig.h"
 
 class scb
 {
