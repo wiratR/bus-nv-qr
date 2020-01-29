@@ -1,0 +1,10 @@
+#ifndef SCBCONFIG_H
+#define SCBCONFIG_H
+
+#define SCB_API_KEY         "l7b315d5f8e95146f19da6cc579ed67f93"
+#define SCB_API_SERECT      "902af33a328149ff8900f4fb107024f8"
+#define SCB_TERMINAL_ID     "885964411201658"
+#define SCB_MERCHARD_ID     "165134740692203"
+#define SCB_PREFIX_CODE     "YGU1234"
+
+#endif

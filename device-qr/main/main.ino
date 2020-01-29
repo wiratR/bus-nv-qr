@@ -125,7 +125,7 @@ String serverIndex =
     style;
 // =========================================================================== //
 // ArdunioJson should be use version 5.x.x
-TFT_eSPI tft = TFT_eSPI();
+ TFT_eSPI tft = TFT_eSPI();
 
 #include "src/utils/xbm.h"
 
@@ -200,35 +200,24 @@ void setup()
   // =============================================================
   // Hardware initail
   // =============================================================
-  HardwareInitial();
+  // HardwareInitial();
   // =============================================================
   // WiFi initialised
   // =============================================================
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.print("Connecting to Wi-Fi");
+
+  // Wait for connection
   while (WiFi.status() != WL_CONNECTED)
   {
+    delay(500);
     Serial.print(".");
-    delay(300);
-    count++;
-    if ( count == WIFI_CONNTION_TIMEOUT )
-    {
-      Serial.print("Connected internet failed timeout ");
-      tft.begin();
-      tft.setRotation(1); // set lanscape
-      showScreen(5);      // pages
-      while (1)
-      {
-        delay(1000);
-      }
-    }
-
   }
-  Serial.println();
-  Serial.print("Connected with IP: ");
+  Serial.println("");
+  Serial.print("Connected to ");
+  //Serial.println(WIFI_SSID);
+  Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
-  Serial.println();
-
 
   // ===================== use mdns for host name resolution ========================== //
   if (!MDNS.begin(HOST_NAME))
@@ -274,7 +263,7 @@ void setup()
     } });
   server.begin();
   //////////////////////////////////////////////////////////////////////////////
-
+/*
   device_ip = utilsHelper.IpAddress2String(WiFi.localIP());
   // Initialize a NTPClient to get time
   timeClient.begin();
@@ -305,12 +294,14 @@ void setup()
     while (1) yield(); // Stay here twiddling thumbs waiting
   }
   Serial.println("\r\nSPIFFS initialised.");
-
+*/
+#ifdef SHOWLCD
   tft.begin();
   tft.setRotation(1); // set lanscape
   tft.fillScreen(TFT_WHITE);
   showScreen(display_mode); // reboting pages
-
+#endif
+/*
   refreshDateTime();
   refreshLocations();
 
@@ -325,9 +316,12 @@ void setup()
     display_mode = 1; // welcome screen
   }
   delay(500);
+#ifdef SHOWLCD
   showScreen(display_mode);
+#endif
   prev_display = display_mode;
   delay(300);
+  */
 }
 
 void HardwareInitial()
@@ -349,6 +343,7 @@ void HardwareInitial()
   }
   swSer.println("");
 }
+// =============================================================
 
 String qrData = "";
 String paymentType;
@@ -359,16 +354,20 @@ String paymentCodeId;
 unsigned int lastStringLength = qrData.length(); // previous length of the String
 
 String ETag = "";
-
 String deviceRecheckRequest;
-
 int result = -1;
 
 void loop()
 {
   server.handleClient();      // add ---- Server.handle
 
-  while (swSer.available())
+  Serial.println("Test scb payment API");
+  result = scbAPI.payment(qrData, "20.00");
+  Serial.println("get a result : " + result);
+
+
+#ifdef SHOWLCD
+  while (swSer.available()) 
   {
     char recieved = swSer.read();
     qrData += recieved;
@@ -468,6 +467,8 @@ void loop()
     }
   }
 
+
+#endif
 
 
 }
