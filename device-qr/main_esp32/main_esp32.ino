@@ -1,14 +1,52 @@
+#include <Arduino.h>
+
+// Board especific libraries
+#if defined ESP8266 || defined ESP32
+// Use mDNS ? (comment this do disable it)
+#define USE_MDNS true
+// Arduino OTA (uncomment this to enable)
+#define USE_ARDUINO_OTA true
+#else
+
+// RemoteDebug library is now only to Espressif boards,
+// access: https://github.com/JoaoLopesF/RemoteDebug/issues
+
+#error "The board must be ESP8266 or ESP32"
+#endif // ESP
+//////// Libraries
+#if defined ESP8266
+// Includes of ESP8266
+#include <ESP8266WiFi.h>
+
+#ifdef USE_MDNS
+#include <DNSServer.h>
+#include <ESP8266mDNS.h>
+#endif
+
+#elif defined ESP32
+// Includes of ESP32
 #include <WiFi.h>
+#include <ESP32Ping.h>
+#ifdef USE_MDNS
+#include <DNSServer.h>
+#include <ESPmDNS.h>
+#endif
+
+#endif // ESP
+
 #include <WiFiClient.h>
 #include <WebServer.h>
-#include <ESPmDNS.h>
 #include <Update.h>
 #include <HTTPClient.h>
-#include <TFT_eSPI.h>               // Hardware-specific library for ESP8266
+#include <TFT_eSPI.h>                     // Hardware-specific library for ESP8266
 #include <NTPClient.h>
 #include <WiFiUdp.h>
 #include <FirebaseESP32.h>
 #include <time.h>
+
+// Remote debug over WiFi - not recommended for production, only for development
+#include "RemoteDebug.h"                //https://github.com/JoaoLopesF/RemoteDebug
+RemoteDebug Debug;
 
 #include "src/config/projectsKey.h"
 #include "src/API/scb.h"
@@ -51,7 +89,6 @@ String device_ip;
 String sw_version = "1.0.0";
 int device_number = 1;
 
-
 location_t dv_location;
 String path_dv_staus;
 String path_tx_usage;
@@ -60,76 +97,78 @@ int display_mode = 0;
 int prev_display;
 
 // ==================== OTA web upload ================================= //
+#ifdef USE_ARDUINO_OTA
 WebServer server(80);
 /* Style */
 String style =
-"<style>#file-input,input{width:100%;height:44px;border-radius:4px;margin:10px auto;font-size:15px}"
-"input{background:#f1f1f1;border:0;padding:0 15px}body{background:#3498db;font-family:sans-serif;font-size:14px;color:#777}"
-"#file-input{padding:0;border:1px solid #ddd;line-height:44px;text-align:left;display:block;cursor:pointer}"
-"#bar,#prgbar{background-color:#f1f1f1;border-radius:10px}#bar{background-color:#3498db;width:0%;height:10px}"
-"form{background:#fff;max-width:258px;margin:75px auto;padding:30px;border-radius:5px;text-align:center}"
-".btn{background:#3498db;color:#fff;cursor:pointer}</style>";
+  "<style>#file-input,input{width:100%;height:44px;border-radius:4px;margin:10px auto;font-size:15px}"
+  "input{background:#f1f1f1;border:0;padding:0 15px}body{background:#3498db;font-family:sans-serif;font-size:14px;color:#777}"
+  "#file-input{padding:0;border:1px solid #ddd;line-height:44px;text-align:left;display:block;cursor:pointer}"
+  "#bar,#prgbar{background-color:#f1f1f1;border-radius:10px}#bar{background-color:#3498db;width:0%;height:10px}"
+  "form{background:#fff;max-width:258px;margin:75px auto;padding:30px;border-radius:5px;text-align:center}"
+  ".btn{background:#3498db;color:#fff;cursor:pointer}</style>";
 
 /* Login page */
-String loginIndex = 
-"<form name=loginForm>"
-"<h1>ESP32 Login</h1>"
-"<input name=userid placeholder='User ID'> "
-"<input name=pwd placeholder=Password type=Password> "
-"<input type=submit onclick=check(this.form) class=btn value=Login></form>"
-"<script>"
-"function check(form) {"
-"if(form.userid.value=='admin' && form.pwd.value=='admin')"
-"{window.open('/serverIndex')}"
-"else"
-"{alert('Error Password or Username')}"
-"}"
-"</script>" + style;
- 
+String loginIndex =
+  "<form name=loginForm>"
+  "<h1>ESP32 Login</h1>"
+  "<input name=userid placeholder='User ID'> "
+  "<input name=pwd placeholder=Password type=Password> "
+  "<input type=submit onclick=check(this.form) class=btn value=Login></form>"
+  "<script>"
+  "function check(form) {"
+  "if(form.userid.value=='admin' && form.pwd.value=='admin')"
+  "{window.open('/serverIndex')}"
+  "else"
+  "{alert('Error Password or Username')}"
+  "}"
+  "</script>" + style;
+
 /* Server Index Page */
-String serverIndex = 
-"<script src='https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js'></script>"
-"<form method='POST' action='#' enctype='multipart/form-data' id='upload_form'>"
-"<input type='file' name='update' id='file' onchange='sub(this)' style=display:none>"
-"<label id='file-input' for='file'>   Choose file...</label>"
-"<input type='submit' class=btn value='Update'>"
-"<br><br>"
-"<div id='prg'></div>"
-"<br><div id='prgbar'><div id='bar'></div></div><br></form>"
-"<script>"
-"function sub(obj){"
-"var fileName = obj.value.split('\\\\');"
-"document.getElementById('file-input').innerHTML = '   '+ fileName[fileName.length-1];"
-"};"
-"$('form').submit(function(e){"
-"e.preventDefault();"
-"var form = $('#upload_form')[0];"
-"var data = new FormData(form);"
-"$.ajax({"
-"url: '/update',"
-"type: 'POST',"
-"data: data,"
-"contentType: false,"
-"processData:false,"
-"xhr: function() {"
-"var xhr = new window.XMLHttpRequest();"
-"xhr.upload.addEventListener('progress', function(evt) {"
-"if (evt.lengthComputable) {"
-"var per = evt.loaded / evt.total;"
-"$('#prg').html('progress: ' + Math.round(per*100) + '%');"
-"$('#bar').css('width',Math.round(per*100) + '%');"
-"}"
-"}, false);"
-"return xhr;"
-"},"
-"success:function(d, s) {"
-"console.log('success!') "
-"},"
-"error: function (a, b, c) {"
-"}"
-"});"
-"});"
-"</script>" + style;
+String serverIndex =
+  "<script src='https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js'></script>"
+  "<form method='POST' action='#' enctype='multipart/form-data' id='upload_form'>"
+  "<input type='file' name='update' id='file' onchange='sub(this)' style=display:none>"
+  "<label id='file-input' for='file'>   Choose file...</label>"
+  "<input type='submit' class=btn value='Update'>"
+  "<br><br>"
+  "<div id='prg'></div>"
+  "<br><div id='prgbar'><div id='bar'></div></div><br></form>"
+  "<script>"
+  "function sub(obj){"
+  "var fileName = obj.value.split('\\\\');"
+  "document.getElementById('file-input').innerHTML = '   '+ fileName[fileName.length-1];"
+  "};"
+  "$('form').submit(function(e){"
+  "e.preventDefault();"
+  "var form = $('#upload_form')[0];"
+  "var data = new FormData(form);"
+  "$.ajax({"
+  "url: '/update',"
+  "type: 'POST',"
+  "data: data,"
+  "contentType: false,"
+  "processData:false,"
+  "xhr: function() {"
+  "var xhr = new window.XMLHttpRequest();"
+  "xhr.upload.addEventListener('progress', function(evt) {"
+  "if (evt.lengthComputable) {"
+  "var per = evt.loaded / evt.total;"
+  "$('#prg').html('progress: ' + Math.round(per*100) + '%');"
+  "$('#bar').css('width',Math.round(per*100) + '%');"
+  "}"
+  "}, false);"
+  "return xhr;"
+  "},"
+  "success:function(d, s) {"
+  "console.log('success!') "
+  "},"
+  "error: function (a, b, c) {"
+  "}"
+  "});"
+  "});"
+  "</script>" + style;
+#endif
 
 scb   scbAPI;
 utils utilsHelper;
@@ -138,33 +177,110 @@ nvapi db;
 void refreshDateTime();
 void refreshLocations();
 
+// Time
+
+uint32_t mLastTime = 0;
+uint32_t mTimeSeconds = 0;
+
+int wificounter;
+
+/*
+  IPAddress local_IP(172, 20, 10, 5);
+  IPAddress gateway(172, 20, 10, 1);
+  IPAddress subnet(255, 255, 255, 240);
+  IPAddress primaryDNS(172, 20, 10, 1); //optional
+  IPAddress secondaryDNS(8, 8, 8, 8); //optional
+*/
+
+IPAddress local_IP(192, 168, 1, 34);
+IPAddress gateway(192, 168, 1, 1);
+IPAddress subnet(255, 255, 255, 0);
+IPAddress primaryDNS(192, 168, 1, 1); //optional
+IPAddress secondaryDNS(8, 8, 8, 8);   //optional
+
+void setup_wifi()
+{
+  Serial.println();
+  Serial.print("Connecting to ");
+  Serial.println(WIFI_SSID);
+
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    WiFi.disconnect();
+  }
+
+  //WiFi.config(local_IP);
+  if (WiFi.status() != WL_CONNECTED)
+  {
+    if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS))
+    {
+      Serial.println("STA Failed to configure");
+    }
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    //delay(1000);
+  }
+  wificounter = 0;
+  while (WiFi.status() != WL_CONNECTED && wificounter < 50)
+  {
+    for (int i = 0; i < 500; i++)
+    {
+      delay(1);
+    }
+    Serial.print(".");
+    wificounter++;
+  }
+
+  if (wificounter >= 50) {
+    Serial.println("Restarting ...");
+    ESP.restart();
+  }
+  delay(10);
+  // We start by connecting to a WiFi network
+  Serial.println("");
+  Serial.println("WiFi connected.");
+  printCurrentNet();
+  printWiFiData();
+}
+
+int pingResult;
+
+int state = 0;
+int counter = 0;
+int someNumLoops = 1000;
+
+#ifndef LED_BUILTIN
+#define LED_BUILTIN 13 // pin number is specific to your esp32 board
+#endif
+#define RXD2 16
+#define TXD2 17
+
 /* setup function */
 void setup(void) {
 
   Serial.begin(115200);
+  Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
 
-  //pinMode(LED_BUILTIN, OUTPUT);
+  // initialize digital pin LED_BUILTIN as an output.
+  pinMode(LED_BUILTIN, OUTPUT);
 
   Serial.println("Test sample RESI API");
-  
-  // Connect to WiFi network
 
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.println("");
+  // We start by connecting to a WiFi network
+  setup_wifi();
 
-  // Wait for connection
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+  // test ping google
+  bool success = Ping.ping("www.google.com", 3);
+  if (!success)
+  {
+    Serial.println("Ping failed");
+    return;
   }
-  Serial.println("");
-  Serial.print("Connected to ");
-  Serial.println(WIFI_SSID);
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
+  Serial.println("Ping succesful.");
 
-  /*use mdns for host name resolution*/
+#ifdef USE_ARDUINO_OTA
+  //use mdns for host name resolution//
   if (!MDNS.begin(HOST_NAME))
+    //if (!MDNS.begin("http:/192.168.1.199.local"))
   { //http://esp32.local
     Serial.println("Error setting up MDNS responder!");
     while (1) {
@@ -207,10 +323,15 @@ void setup(void) {
     }
   });
   server.begin();
+#endif
 
-
-// Initial code here
-
+  // ========= Initialize RemoteDebug
+  Debug.begin(HOST_NAME);         // Initialize the WiFi server
+  Debug.setResetCmdEnabled(true); // Enable the reset command
+  Debug.showProfiler(true); // Profiler (Good to measure times, to optimize codes)
+  Debug.showColors(true); // Colors
+  // =========================================
+  // Initial code here
   device_ip = utilsHelper.IpAddress2String(WiFi.localIP());
   // Initialize a NTPClient to get time
   timeClient.begin();
@@ -241,25 +362,75 @@ void setup(void) {
     Serial.println("sentResponseDeviceStatus failed");
   }
 
-  delay(500);
-
-  if( scbAPI.payment("", "20.00") )
-  {
-      Serial.println("get a payment sucess");
-  }
-  else
-  {
+  /*
+    if ( scbAPI.payment("", "20.00") )
+    {
+    Serial.println("get a payment sucess");
+    }
+    else
+    {
     Serial.println("get a payment failed");
-  }
-  delay(500);
+    }
+  */
+
 }
 
 void loop(void) {
+#ifdef USE_ARDUINO_OTA
   server.handleClient();
-  delay(1);
+#endif
+  // RemoteDebug handle
+  Debug.handle();
+
+  if (Debug.isActive(Debug.VERBOSE))
+  {
+    Debug.printf("set a device IP : %s\n", device_ip.c_str());
+  }
+
+  toggle();
+  delay(500);
+  yield();
 }
 
+void toggle()
+{
+  int reCheckStatus = 0;
+  debugD("this is a debug - Led read %d", digitalRead(LED_BUILTIN));
+  digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+  Serial.println("Strta toggle get a recheck status");
+  reCheckStatus = db.getRecheckStaus(firebaseData1, path_dv_staus, showsDebug);
+  debugD("toggle get a recheck status %d", reCheckStatus);
 
+  if (reCheckStatus == 1 )
+  {
+    refreshDateTime();
+    refreshLocations();
+  
+    if (db.sentResponseDeviceStatus(firebaseData1, path_dv_staus, 1, dv_location, device_ip, formattedDate, showsDebug) < 0)
+    {
+      // write logs error
+      Serial.println("sentResponseDeviceStatus failed");
+    }
+  }
+  else{
+    Serial.println("get a check status = " + String(reCheckStatus));
+
+    
+    debugD("done get a recheck status %d", reCheckStatus);
+  }
+  
+ 
+}
+
+// Function example to show a new auto function name of debug* macros
+
+void foo() {
+
+  uint8_t var = 1;
+
+  debugV("this is a debug - var %u", var);
+  debugV("This is a println");
+}
 
 // ============================================================
 // this functions to cll refresh datetime
@@ -303,4 +474,51 @@ void refreshLocations()
     Serial.println("Longitude: " + String(dv_location.lon, 7));
     Serial.println("Accuracy: " + String(dv_location.accuracy));
   }
+}
+
+void printWiFiData()
+{
+  // print your WiFi shield's IP address:
+  IPAddress ip = WiFi.localIP();
+  Serial.print("IP address : ");
+  Serial.println(ip);
+
+  Serial.print("Subnet mask: ");
+  Serial.println((IPAddress)WiFi.subnetMask());
+
+  Serial.print("Gateway IP : ");
+  Serial.println((IPAddress)WiFi.gatewayIP());
+
+  Serial.print("DNS: ");
+  Serial.println((IPAddress)WiFi.dnsIP());
+
+  // print your MAC address:
+  byte mac[6];
+  WiFi.macAddress(mac);
+  Serial.print("MAC address: ");
+  printMacAddress(mac);
+}
+
+void printCurrentNet()
+{
+  // print the SSID of the network you're attached to:
+  Serial.print("SSID: ");
+  Serial.println(WiFi.SSID());
+  // print the received signal strength:
+  long rssi = WiFi.RSSI();
+  Serial.print("signal strength (RSSI): ");
+  Serial.println(rssi);
+}
+
+void printMacAddress(byte mac[]) {
+  for (int i = 5; i >= 0; i--) {
+    if (mac[i] < 16) {
+      Serial.print("0");
+    }
+    Serial.print(mac[i], HEX);
+    if (i > 0) {
+      Serial.print(":");
+    }
+  }
+  Serial.println();
 }

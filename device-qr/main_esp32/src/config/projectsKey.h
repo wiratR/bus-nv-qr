@@ -15,8 +15,10 @@
 #define _prefix_code "YGU1234"
 */
 
-extern const char *HOST_NAME        = "esp32";
-extern const char *WIFI_SSID        = "Bon iPhone";
+extern const char *HOST_NAME        = "evt0002";
+//extern const char *WIFI_SSID        = "Bon iPhone";
+//extern const char *WIFI_PASSWORD    = "1234BAll";
+extern const char *WIFI_SSID        = "Bonny_2G_e00";
 extern const char *WIFI_PASSWORD    = "1234BAll";
 
 extern const char *FIREBASE_HOST    = "qr-evt-db.firebaseio.com";
@@ -25,5 +27,6 @@ extern const char *FIREBASE_AUTH    = "LCX6Yyh4A9wuURogU0fhN03MbsfvWiRF2Z9iSl3z"
 // Config Google API Key for MAP_LOACTION
 extern const char *googleApiKey = "AIzaSyDTuLll4kYce8bLICQ6-dL81QIGPsk3kRQ";
 
+extern const char *AuthToken = "5c6Q2QEK_ow37rVgAWnHMW1PlotvjYBz";
 
 #endif

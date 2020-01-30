@@ -1,7 +1,6 @@
 #include "Arduino.h"
 #include "nvapi.h"
 
-
 utils   helper;
 
 void nvapi::initial_db(String host, String auth)
@@ -192,7 +191,7 @@ int nvapi::sentResponseDeviceStatus(
 // =======================================================================
 // this function implement for get 'recheck' to Firebase 'dv_staus'to RDS
 // ======================================================================
-int nvapi::getRecheckStaus(FirebaseData &firebaseData, String refPath)
+int nvapi::getRecheckStaus(FirebaseData &firebaseData, String refPath, boolean enableDebug)
 {
   String ret = "";
 
@@ -232,6 +231,13 @@ int nvapi::getRecheckStaus(FirebaseData &firebaseData, String refPath)
     Serial.println("--------------------------------------------------------");
     Serial.println();
     return -1;
+  }
+
+  if(enableDebug)
+  {
+    Serial.println("--------------------------------------------------------");
+    Serial.println("getRecheckStaus() : done " + ret );
+    Serial.println("--------------------------------------------------------");
   }
 
   if (ret != "")
@@ -682,4 +688,55 @@ int nvapi::sentRequestPay(
     */
 
     return 0; // done
+}
+
+String nvapi::getDevcieResigter(
+    FirebaseData &firebaseData,
+    String      refPath,
+    String      deviceName,
+    boolean     enableDebug
+)
+{
+  String ret = "";
+
+  if (!Firebase.beginStream(firebaseData, refPath))
+  {
+    Serial.println("---------------------------------------------------------");
+    Serial.println("getDevcieResigter() : Can't begin stream connection...");
+    Serial.println("REASON: " + firebaseData.errorReason());
+    Serial.println("---------------------------------------------------------");
+    Serial.println();
+    return "error";
+  }
+
+  delay(100);
+
+  if (!Firebase.readStream(firebaseData))
+  {
+    Serial.println("--------------------------------------------------------");
+    Serial.println("getDevcieResigter() : Can't read stream data");
+    Serial.println("REASON: " + firebaseData.errorReason());
+    Serial.println("-------------------------------------------------------");
+    Serial.println();
+    return "error";
+  }
+
+  if (firebaseData.streamTimeout())
+  {
+    Serial.println("Stream timeout, resume streaming...");
+    Serial.println();
+    return "timeout";
+  }
+
+  if (!Firebase.getString(firebaseData, refPath + "/ei_list/" + deviceName + "/status/", ret))
+  {
+    Serial.println("--------------------------------------------------------");
+    Serial.println("sentResponseDevcieResigter() : updateNode() failed");
+    Serial.println("REASON: " + firebaseData.errorReason());
+    Serial.println("--------------------------------------------------------");
+    Serial.println();
+    return "error";
+  }
+
+  return ret;
 }

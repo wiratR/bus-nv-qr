@@ -7,3 +7,6 @@ device-qr/main/.vscode/c_cpp_properties.json
 ESP_32/key.txt
 device-qr/main/src/config/projectsKey.h
 device-qr/main/src/API/scbConfig.h
+device-qr/main_esp32/main_esp32.ino.esp32.bin
+device-qr/main_esp32/src/config/projectsKey.h
+device-qr/main_esp32/src/config/projectsKey.h

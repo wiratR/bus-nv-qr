@@ -29,8 +29,9 @@ class nvapi
         );
 
         int getRecheckStaus(
-            FirebaseData &firebaseData, 
-            String       refPath
+            FirebaseData &firebaseData,
+            String refPath,
+            boolean enableDebug
         );
 
         int payTxn(
@@ -69,6 +70,13 @@ class nvapi
             String          qrData, 
             int             txnValue,
             location_t      deviceLocation,   
+            boolean         enableDebug
+        );
+
+        String getDevcieResigter(
+            FirebaseData    &firebaseData,
+            String          refPath,
+            String          deviceName,
             boolean         enableDebug
         );
 
