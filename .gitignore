@@ -10,3 +10,6 @@ device-qr/main/src/API/scbConfig.h
 device-qr/main_esp32/main_esp32.ino.esp32.bin
 device-qr/main_esp32/src/config/projectsKey.h
 device-qr/main_esp32/src/config/projectsKey.h
+device-qr/build/*.*
+device-qr/.DS_Store
+device-qr/build/sketch/src/utils/xbm.h
