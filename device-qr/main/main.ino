@@ -127,6 +127,7 @@ String serverIndex =
 // ArdunioJson should be use version 5.x.x
  TFT_eSPI tft = TFT_eSPI();
 
+<<<<<<< HEAD
 #include "src/utils/xbm.h"
 
 // Define NTP Client to get time
@@ -151,6 +152,10 @@ String timeStamp;
 #define PAYMENT       "/payment_request"
 
 #define WIFI_CONNTION_TIMEOUT 2000
+=======
+// Declare the Firebase Data object in global scope
+FirebaseData firebaseData;
+>>>>>>> parent of 3e27b21... add firebase
 
 boolean showsDebug = true; // set true for more debug output
 
@@ -163,6 +168,7 @@ String device_ip;
 String sw_version = "1.0.0";
 int device_number = 1;
 
+<<<<<<< HEAD
 location_t dv_location;
 String path_dv_staus;
 String path_tx_usage;
@@ -196,6 +202,9 @@ int count = 0;
 
 void setup()
 {
+=======
+void setup() {
+>>>>>>> parent of 3e27b21... add firebase
   // put your setup code here, to run once:
   // =============================================================
   // Hardware initail
@@ -219,6 +228,7 @@ void setup()
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 
+<<<<<<< HEAD
   // ===================== use mdns for host name resolution ========================== //
   if (!MDNS.begin(HOST_NAME))
   { //http://esp32.local
@@ -290,10 +300,14 @@ void setup()
   // =====================================================
   if (!SPIFFS.begin())
   {
+=======
+  if (!SPIFFS.begin()) {
+>>>>>>> parent of 3e27b21... add firebase
     Serial.println("SPIFFS initialisation failed!");
     while (1) yield(); // Stay here twiddling thumbs waiting
   }
   Serial.println("\r\nSPIFFS initialised.");
+<<<<<<< HEAD
 */
 #ifdef SHOWLCD
   tft.begin();
@@ -342,6 +356,36 @@ void HardwareInitial()
     swSer.write(ch);
   }
   swSer.println("");
+=======
+
+  // Setup Firebase credential in setup()
+  Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
+  // Optional, set AP reconnection in setup()
+  Firebase.reconnectWiFi(true);
+
+  testFirebase();
+
+  // Now initialise the TFT
+  tft.begin();
+  tft.setRotation(1); // set lanscape
+  tft.fillScreen(TFT_WHITE);
+  showScreen(0);      // reboting pages
+/*
+  if(deviceStatus(firebaseData) < 0 )
+  {
+      Serial.println("\r\nsent device status failed.");
+  }
+  */
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+  for (uint8_t pages = 1; pages < 5; pages++) {
+    //drawBmp("/1.bmp", 0, 0);
+    showScreen(pages);
+    delay(3000);
+  }
+>>>>>>> parent of 3e27b21... add firebase
 }
 // =============================================================
 
@@ -527,6 +571,7 @@ unsigned long showScreen(uint8_t pages)
       }
       break;
     case 1:
+<<<<<<< HEAD
       // welcome screen
       utilsHelper.drawBmp("/welcome.bmp", 0, 0, tft);
       break;
@@ -545,6 +590,22 @@ unsigned long showScreen(uint8_t pages)
     case 5:
       // Out Of Service
       utilsHelper.drawBmp("/outofservice.bmp", 0, 0, tft);
+=======
+      // shows welcome screen
+      drawBmp("/1.bmp", 0, 0);
+      break;
+    case 2:
+      // shows Paymnet Sucess
+      drawBmp("/2.bmp", 0, 0);
+      break;
+    case 3:
+      // shows Paymnet Failed
+      drawBmp("/3.bmp", 0, 0);
+      break;
+    case 4:
+      // show Out Of Service
+      drawBmp("/4.bmp", 0, 0);
+>>>>>>> parent of 3e27b21... add firebase
       break;
     default:
       // if nothing else matches, do the default
