@@ -1,21 +1,21 @@
 #ifndef NVAPI_H
 #define NVAPI_H
 
-#include "Arduino.h"
-#ifdef ESP8266
+#include <Arduino.h>
+#if defined ESP8266
     #include <ESP8266WiFi.h>
     #include "FirebaseESP8266.h"
-#else
+#elif defined ESP32
     #include <WiFi.h>
     #include <FirebaseESP32.h>
 #endif
 
-#include "../utils/utils.h"
 #include "../utils/data_types.h"
 
 class nvapi
 {
     public:
+
         void initial_db(String host, String auth);
 
         int sentResponseDeviceStatus (
@@ -83,5 +83,4 @@ class nvapi
     private : 
         void printResult(FirebaseData &data);
 };
-
 #endif

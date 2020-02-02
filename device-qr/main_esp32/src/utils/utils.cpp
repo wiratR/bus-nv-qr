@@ -40,6 +40,8 @@ String utils::getTxName(String refPath, int deviceNumber, String datePattern, St
                          String(deviceBuf[0]) + String(deviceBuf[1]) +
                          String(deviceBuf[2]) + String(deviceBuf[3]) + "_dat";
 }
+
+
 // BMP image rendering function
 void utils::drawBmp(const char *filename, int16_t x, int16_t y, TFT_eSPI tft)
 {

@@ -1,8 +1,6 @@
 #include "Arduino.h"
 #include "nvapi.h"
 
-utils   helper;
-
 void nvapi::initial_db(String host, String auth)
 {
     Serial.println("start initial firebase");
@@ -245,8 +243,6 @@ int nvapi::getRecheckStaus(FirebaseData &firebaseData, String refPath, boolean e
   else
     return -1;
 }
-
-
 
 // ======================================================================================
 // this function implement for set Payment to Firebase to RDS

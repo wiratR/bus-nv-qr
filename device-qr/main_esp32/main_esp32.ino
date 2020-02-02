@@ -5,43 +5,62 @@
 // Use mDNS ? (comment this do disable it)
 #define USE_MDNS true
 // Arduino OTA (uncomment this to enable)
-#define USE_ARDUINO_OTA true
-#else
+#define USE_ARDUINO_OTA false
 
-// RemoteDebug library is now only to Espressif boards,
-// access: https://github.com/JoaoLopesF/RemoteDebug/issues
+#define USE_ESP8266_WEBUPDATE true
 
-#error "The board must be ESP8266 or ESP32"
 #endif // ESP
+
 //////// Libraries
 #if defined ESP8266
 // Includes of ESP8266
+#include <NTPClient.h>
 #include <ESP8266WiFi.h>
-
+#include <FirebaseESP8266.h>
+#include <WiFiClient.h>
+#include <ESP8266WebServer.h>
+#include <ESP8266HTTPClient.h>
+#include <ESP8266Ping.h>
+#include <ESP8266HTTPUpdateServer.h>
+#include <SoftwareSerial.h>
+// List HardWare Board
+#define D0 (16)
+#define D1 (5)    // I2C Bus SCL (clock)
+#define D2 (4)    // I2C Bus SDA (data)
+#define D3 (0)
+#define D4 (2)    // Same as "LED_BUILTIN", but inverted logic
+#define D5 (14)   // SPI Bus SCK (clock)
+#define D6 (12)   // SPI Bus MISO
+#define D7 (13)   // SPI Bus MOSI
+#define D8 (15)   // SPI Bus SS (CS)
+#define D9 (3)    // RX0 (Serial console)
+#define D10 (1)   // TX0 (Serial console)
+#define relay_out D0 // output
 #ifdef USE_MDNS
 #include <DNSServer.h>
 #include <ESP8266mDNS.h>
+
+#define UPDATE_SIZE_UNKNOWN 0xFFFFFFFF
+
 #endif
 
 #elif defined ESP32
 // Includes of ESP32
 #include <WiFi.h>
+#include <NTPClient.h>
+#include <WiFiClient.h>
 #include <ESP32Ping.h>
+#include <FirebaseESP32.h>
+#include <WebServer.h>
+#include <HTTPClient.h>
+#include <Update.h>
 #ifdef USE_MDNS
 #include <DNSServer.h>
 #include <ESPmDNS.h>
 #endif
 
 #endif // ESP
-
-#include <WiFiClient.h>
-#include <WebServer.h>
-#include <Update.h>
-#include <HTTPClient.h>
-#include <TFT_eSPI.h>                     // Hardware-specific library for ESP8266
-#include <NTPClient.h>
 #include <WiFiUdp.h>
-#include <FirebaseESP32.h>
 #include <time.h>
 
 // Remote debug over WiFi - not recommended for production, only for development
@@ -49,11 +68,19 @@
 RemoteDebug Debug;
 
 #include "src/config/projectsKey.h"
-#include "src/API/scb.h"
 #include "src/utils/utils.h"
+#include "src/utils/data_types.h"
+#include "src/utils/TFTLcd.h"
+#include "src/API/scb.h"
 #include "src/database/nvapi.h"
 
-#include "src/utils/xbm.h"
+nvapi       db;
+utils       utilsHelper;
+scb         scbAPI;
+TFTLcd      screen;
+
+
+//#include "src/utils/xbm.h"
 
 // Define NTP Client to get time
 WiFiUDP ntpUDP;
@@ -64,15 +91,15 @@ WifiLocation location(googleApiKey);
 String formattedDate;
 String dayStamp;
 String timeStamp;
+#define GMT_7_OFFSET 25200
 // GMT +1 = 3600
 // GMT +7 = 25200
 // GMT +8 = 28800
 // GMT -1 = -3600
 // GMT 0 = 0
-#define GMT_7_OFFSET 25200
 
-#define DV_STATUS       "/dv_status"       // Firebase Realtime Database node to store 'dv_status'
-#define MAP_LOACTION    "/map_location" // Firebase Realtime Database node to store 'map_location'
+#define DV_STATUS       "/dv_status"        // Firebase Realtime Database node to store 'dv_status'
+#define MAP_LOACTION    "/map_location"     // Firebase Realtime Database node to store 'map_location'
 #define TX_USAGE        "/tx_usage"         // Firebase Realtime Database node to store 'tx_usage'
 #define PAYMENT         "/payment_request"
 
@@ -88,7 +115,6 @@ FirebaseData firebaseData1;
 String device_ip;
 String sw_version = "1.0.0";
 int device_number = 1;
-
 location_t dv_location;
 String path_dv_staus;
 String path_tx_usage;
@@ -98,7 +124,12 @@ int prev_display;
 
 // ==================== OTA web upload ================================= //
 #ifdef USE_ARDUINO_OTA
+
+#ifdef ESP8266
+ESP8266WebServer server(80);
+#elif ESP32
 WebServer server(80);
+#endif
 /* Style */
 String style =
   "<style>#file-input,input{width:100%;height:44px;border-radius:4px;margin:10px auto;font-size:15px}"
@@ -111,13 +142,13 @@ String style =
 /* Login page */
 String loginIndex =
   "<form name=loginForm>"
-  "<h1>ESP32 Login</h1>"
+  "<h1>EVT Login</h1>"
   "<input name=userid placeholder='User ID'> "
   "<input name=pwd placeholder=Password type=Password> "
   "<input type=submit onclick=check(this.form) class=btn value=Login></form>"
   "<script>"
   "function check(form) {"
-  "if(form.userid.value=='admin' && form.pwd.value=='admin')"
+  "if(form.userid.value=='admin' && form.pwd.value=='P@ssw0rd')"
   "{window.open('/serverIndex')}"
   "else"
   "{alert('Error Password or Username')}"
@@ -170,14 +201,9 @@ String serverIndex =
   "</script>" + style;
 #endif
 
-scb   scbAPI;
-utils utilsHelper;
-nvapi db;
 
 void refreshDateTime();
 void refreshLocations();
-
-// Time
 
 uint32_t mLastTime = 0;
 uint32_t mTimeSeconds = 0;
@@ -190,13 +216,13 @@ int wificounter;
   IPAddress subnet(255, 255, 255, 240);
   IPAddress primaryDNS(172, 20, 10, 1); //optional
   IPAddress secondaryDNS(8, 8, 8, 8); //optional
-*/
 
-IPAddress local_IP(192, 168, 1, 34);
-IPAddress gateway(192, 168, 1, 1);
-IPAddress subnet(255, 255, 255, 0);
-IPAddress primaryDNS(192, 168, 1, 1); //optional
-IPAddress secondaryDNS(8, 8, 8, 8);   //optional
+  IPAddress local_IP(192, 168, 1, 34);
+  IPAddress gateway(192, 168, 1, 1);
+  IPAddress subnet(255, 255, 255, 0);
+  IPAddress primaryDNS(192, 168, 1, 1); //optional
+  IPAddress secondaryDNS(8, 8, 8, 8);   //optional
+*/
 
 void setup_wifi()
 {
@@ -212,10 +238,10 @@ void setup_wifi()
   //WiFi.config(local_IP);
   if (WiFi.status() != WL_CONNECTED)
   {
-    if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS))
-    {
-      Serial.println("STA Failed to configure");
-    }
+    //if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS))
+    //{
+    //  Serial.println("STA Failed to configure");
+    //}
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
     //delay(1000);
   }
@@ -251,14 +277,12 @@ int someNumLoops = 1000;
 #ifndef LED_BUILTIN
 #define LED_BUILTIN 13 // pin number is specific to your esp32 board
 #endif
-#define RXD2 16
-#define TXD2 17
 
 /* setup function */
 void setup(void) {
 
   Serial.begin(115200);
-  Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
+  //Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
 
   // initialize digital pin LED_BUILTIN as an output.
   pinMode(LED_BUILTIN, OUTPUT);
@@ -362,6 +386,9 @@ void setup(void) {
     Serial.println("sentResponseDeviceStatus failed");
   }
 
+  Serial.println("Start Initial LCD ");
+  screen.initializeLcd();
+  Serial.println("End Initial LCD ");
   /*
     if ( scbAPI.payment("", "20.00") )
     {
@@ -405,21 +432,21 @@ void toggle()
   {
     refreshDateTime();
     refreshLocations();
-  
+
     if (db.sentResponseDeviceStatus(firebaseData1, path_dv_staus, 1, dv_location, device_ip, formattedDate, showsDebug) < 0)
     {
       // write logs error
       Serial.println("sentResponseDeviceStatus failed");
     }
   }
-  else{
+  else {
     Serial.println("get a check status = " + String(reCheckStatus));
 
-    
+
     debugD("done get a recheck status %d", reCheckStatus);
   }
-  
- 
+
+
 }
 
 // Function example to show a new auto function name of debug* macros
