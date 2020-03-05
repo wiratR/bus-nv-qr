@@ -26,153 +26,59 @@
 #include <FS.h>
 #include <SPI.h>
 #include <TFT_eSPI.h>
-
-#ifdef ESP8266
-  #include <NTPClient.h>
-  #include <ESP8266WiFi.h>
-  #include "FirebaseESP8266.h"
-#else
-  #include <WiFi.h>
-  #include <NTPClient.h>
-  #include <FirebaseESP32.h>
-#endif
-
-#include <WiFiClient.h>
-#include <WebServer.h>
-#include <ESPmDNS.h>
-#include <Update.h>
+#include <NTPClient.h>
+#include <ESP8266WiFi.h>
+#include <FirebaseESP8266.h>
 #include <WiFiUdp.h>
 #include <time.h>
 // unwiredlabs Hostname & Geolocation Endpoint url
 // refer :: https : //circuitdigest.com/microcontroller-projects/how-to-track-location-with-nodemcu-using-google-map-api
 #include <WifiLocation.h>
 #include "src/config/projectsKey.h"       // <add your key on this file>
-// ====================================================================================
+#include "src/utils/utils.h"
+#include "src/utils/data_types.h"
+#include "src/API/scb.h"
+#include "src/database/nvapi.h"
 
-WebServer server(80);
+nvapi       db;
+utils       utilsHelper;
+scb         scbAPI;
 
-// =============== OTA DEFINE WEB UPLOAD_FILE =========================================== //
-/* Style */
-String style =
-    "<style>#file-input,input{width:100%;height:44px;border-radius:4px;margin:10px auto;font-size:15px}"
-    "input{background:#f1f1f1;border:0;padding:0 15px}body{background:#3498db;font-family:sans-serif;font-size:14px;color:#777}"
-    "#file-input{padding:0;border:1px solid #ddd;line-height:44px;text-align:left;display:block;cursor:pointer}"
-    "#bar,#prgbar{background-color:#f1f1f1;border-radius:10px}#bar{background-color:#3498db;width:0%;height:10px}"
-    "form{background:#fff;max-width:258px;margin:75px auto;padding:30px;border-radius:5px;text-align:center}"
-    ".btn{background:#3498db;color:#fff;cursor:pointer}</style>";
+SoftwareSerial swSer;
 
-/* Login page */
-String loginIndex =
-    "<form name=loginForm>"
-    "<h1>ESP32 Login</h1>"
-    "<input name=userid placeholder='User ID'> "
-    "<input name=pwd placeholder=Password type=Password> "
-    "<input type=submit onclick=check(this.form) class=btn value=Login></form>"
-    "<script>"
-    "function check(form) {"
-    "if(form.userid.value=='admin' && form.pwd.value=='admin')"
-    "{window.open('/serverIndex')}"
-    "else"
-    "{alert('Error Password or Username')}"
-    "}"
-    "</script>" +
-    style;
-
-/* Server Index Page */
-String serverIndex =
-    "<script src='https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js'></script>"
-    "<form method='POST' action='#' enctype='multipart/form-data' id='upload_form'>"
-    "<input type='file' name='update' id='file' onchange='sub(this)' style=display:none>"
-    "<label id='file-input' for='file'>   Choose file...</label>"
-    "<input type='submit' class=btn value='Update'>"
-    "<br><br>"
-    "<div id='prg'></div>"
-    "<br><div id='prgbar'><div id='bar'></div></div><br></form>"
-    "<script>"
-    "function sub(obj){"
-    "var fileName = obj.value.split('\\\\');"
-    "document.getElementById('file-input').innerHTML = '   '+ fileName[fileName.length-1];"
-    "};"
-    "$('form').submit(function(e){"
-    "e.preventDefault();"
-    "var form = $('#upload_form')[0];"
-    "var data = new FormData(form);"
-    "$.ajax({"
-    "url: '/update',"
-    "type: 'POST',"
-    "data: data,"
-    "contentType: false,"
-    "processData:false,"
-    "xhr: function() {"
-    "var xhr = new window.XMLHttpRequest();"
-    "xhr.upload.addEventListener('progress', function(evt) {"
-    "if (evt.lengthComputable) {"
-    "var per = evt.loaded / evt.total;"
-    "$('#prg').html('progress: ' + Math.round(per*100) + '%');"
-    "$('#bar').css('width',Math.round(per*100) + '%');"
-    "}"
-    "}, false);"
-    "return xhr;"
-    "},"
-    "success:function(d, s) {"
-    "console.log('success!') "
-    "},"
-    "error: function (a, b, c) {"
-    "}"
-    "});"
-    "});"
-    "</script>" +
-    style;
-// =========================================================================== //
-// ArdunioJson should be use version 5.x.x
- TFT_eSPI tft = TFT_eSPI();
-
-<<<<<<< HEAD
-#include "src/utils/xbm.h"
-
-<<<<<<< HEAD
 // Define NTP Client to get time
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
 WifiLocation location(googleApiKey);
-
 // Variables to save date and time
 String formattedDate;
 String dayStamp;
 String timeStamp;
+#define GMT_7_OFFSET 25200
 // GMT +1 = 3600
 // GMT +7 = 25200
 // GMT +8 = 28800
 // GMT -1 = -3600
 // GMT 0 = 0
-#define GMT_7_OFFSET 25200
 
-#define DV_STATUS     "/dv_status"        // Firebase Realtime Database node to store 'dv_status'
-#define MAP_LOACTION  "/map_location"     // Firebase Realtime Database node to store 'map_location'
-#define TX_USAGE      "/tx_usage"         // Firebase Realtime Database node to store 'tx_usage'
-#define PAYMENT       "/payment_request"
+#define DV_STATUS       "/dv_status"        // Firebase Realtime Database node to store 'dv_status'
+#define MAP_LOACTION    "/map_location"     // Firebase Realtime Database node to store 'map_location'
+#define TX_USAGE        "/tx_usage"         // Firebase Realtime Database node to store 'tx_usage'
+#define PAYMENT         "/payment_request"
 
 #define WIFI_CONNTION_TIMEOUT 2000
-=======
-=======
->>>>>>> parent of 3e27b21... add firebase
-// Declare the Firebase Data object in global scope
-FirebaseData firebaseData;
->>>>>>> parent of 3e27b21... add firebase
+#define BAUD_RATE 9600
+// ====================================================================================
+// ArdunioJson should be use version 5.x.x
+ TFT_eSPI tft = TFT_eSPI();
 
 boolean showsDebug = true; // set true for more debug output
 
-// =================================================================
-// Declare the Firebase Data object in global scope
-//Define FirebaseESP32 data objects
 FirebaseData firebaseData1;
-
 String device_ip;
-String sw_version = "1.0.0";
+String sw_version = "2.0.0";
 int device_number = 1;
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 location_t dv_location;
 String path_dv_staus;
 String path_tx_usage;
@@ -180,42 +86,13 @@ String path_pay_request;
 int display_mode = 0;
 int prev_display;
 
-#define BAUD_RATE 9600
 
-// Reminder: the buffer size optimizations here, in particular the isrBufSize that only accommodates
-// a single 8N1 word, are on the basis that any char written to the loopback SoftwareSerial adapter gets read
-// before another write is performed. Block writes with a size greater than 1 would usually fail.
-#ifdef ESP8266
-SoftwareSerial swSer;
-#else
-SoftwareSerial swSer(14, 12, false, 256);
-#endif
-
-#include "src/utils/utils.h"
-#include "src/database/nvapi.h"
-#include "src/API/scb.h"
-
-utils   utilsHelper;
-nvapi   db;
-scb     scbAPI;
-
-unsigned long showScreen(uint8_t pages);
-void refreshDateTime();
-void refreshLocations();
-int count = 0;
-
-void setup()
-{
-=======
-=======
->>>>>>> parent of 3e27b21... add firebase
 void setup() {
->>>>>>> parent of 3e27b21... add firebase
   // put your setup code here, to run once:
   // =============================================================
   // Hardware initail
   // =============================================================
-  // HardwareInitial();
+  HardwareInitial();
   // =============================================================
   // WiFi initialised
   // =============================================================
@@ -234,53 +111,7 @@ void setup() {
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-  // ===================== use mdns for host name resolution ========================== //
-  if (!MDNS.begin(HOST_NAME))
-  { //http://esp32.local
-    Serial.println("Error setting up MDNS responder!");
-    while (1)
-    {
-      delay(1000);
-    }
-  }
-  Serial.println("mDNS responder started");
-  /*return index page which is stored in serverIndex */
-  server.on("/", HTTP_GET, []() {
-    server.sendHeader("Connection", "close");
-    server.send(200, "text/html", loginIndex);
-  });
-  server.on("/serverIndex", HTTP_GET, []() {
-    server.sendHeader("Connection", "close");
-    server.send(200, "text/html", serverIndex);
-  });
-  /*handling uploading firmware file */
-  server.on("/update", HTTP_POST, []() {
-    server.sendHeader("Connection", "close");
-    server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
-    ESP.restart(); }, []() {
-    HTTPUpload& upload = server.upload();
-    if (upload.status == UPLOAD_FILE_START) {
-      Serial.printf("Update: %s\n", upload.filename.c_str());
-      if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { //start with max available size
-        Update.printError(Serial);
-      }
-    } else if (upload.status == UPLOAD_FILE_WRITE) {
-      /* flashing firmware to ESP*/
-      if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
-        Update.printError(Serial);
-      }
-    } else if (upload.status == UPLOAD_FILE_END) {
-      if (Update.end(true)) { //true to set the size to the current progress
-        Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
-      } else {
-        Update.printError(Serial);
-      }
-    } });
-  server.begin();
   //////////////////////////////////////////////////////////////////////////////
-/*
   device_ip = utilsHelper.IpAddress2String(WiFi.localIP());
   // Initialize a NTPClient to get time
   timeClient.begin();
@@ -307,25 +138,16 @@ void setup() {
   // =====================================================
   if (!SPIFFS.begin())
   {
-=======
-  if (!SPIFFS.begin()) {
->>>>>>> parent of 3e27b21... add firebase
-=======
-  if (!SPIFFS.begin()) {
->>>>>>> parent of 3e27b21... add firebase
     Serial.println("SPIFFS initialisation failed!");
     while (1) yield(); // Stay here twiddling thumbs waiting
   }
   Serial.println("\r\nSPIFFS initialised.");
-<<<<<<< HEAD
-*/
-#ifdef SHOWLCD
+
   tft.begin();
   tft.setRotation(1); // set lanscape
   tft.fillScreen(TFT_WHITE);
   showScreen(display_mode); // reboting pages
-#endif
-/*
+
   refreshDateTime();
   refreshLocations();
 
@@ -340,12 +162,10 @@ void setup() {
     display_mode = 1; // welcome screen
   }
   delay(500);
-#ifdef SHOWLCD
   showScreen(display_mode);
-#endif
   prev_display = display_mode;
   delay(300);
-  */
+  
 }
 
 void HardwareInitial()
@@ -355,50 +175,14 @@ void HardwareInitial()
   digitalWrite(relay_out, LOW);
   Serial.begin(115200);
 
-#ifdef ESP8266
   swSer.begin(BAUD_RATE, SWSERIAL_8N1, D1, D2, false, 95, 11);
-#else
-  swSer.begin(BAUD_RATE);
-#endif
+
   Serial.println("\nSoftware serial test started ======= ");
   for (char ch = ' '; ch <= 'z'; ch++)
   {
     swSer.write(ch);
   }
   swSer.println("");
-=======
-
-  // Setup Firebase credential in setup()
-  Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
-  // Optional, set AP reconnection in setup()
-  Firebase.reconnectWiFi(true);
-
-  testFirebase();
-
-  // Now initialise the TFT
-  tft.begin();
-  tft.setRotation(1); // set lanscape
-  tft.fillScreen(TFT_WHITE);
-  showScreen(0);      // reboting pages
-/*
-  if(deviceStatus(firebaseData) < 0 )
-  {
-      Serial.println("\r\nsent device status failed.");
-  }
-  */
-}
-
-void loop() {
-  // put your main code here, to run repeatedly:
-  for (uint8_t pages = 1; pages < 5; pages++) {
-    //drawBmp("/1.bmp", 0, 0);
-    showScreen(pages);
-    delay(3000);
-  }
-<<<<<<< HEAD
->>>>>>> parent of 3e27b21... add firebase
-=======
->>>>>>> parent of 3e27b21... add firebase
 }
 // =============================================================
 
@@ -407,23 +191,19 @@ String paymentType;
 String txn_status;
 String paymentCodeId;
 
+
 //String txtMsg = "";                              // a string for incoming text
 unsigned int lastStringLength = qrData.length(); // previous length of the String
-
 String ETag = "";
 String deviceRecheckRequest;
 int result = -1;
 
 void loop()
 {
-  server.handleClient();      // add ---- Server.handle
-
   Serial.println("Test scb payment API");
   result = scbAPI.payment(qrData, "20.00");
   Serial.println("get a result : " + result);
 
-
-#ifdef SHOWLCD
   while (swSer.available()) 
   {
     char recieved = swSer.read();
@@ -525,9 +305,6 @@ void loop()
   }
 
 
-#endif
-
-
 }
 
 // Hardware Config
@@ -584,8 +361,6 @@ unsigned long showScreen(uint8_t pages)
       }
       break;
     case 1:
-<<<<<<< HEAD
-<<<<<<< HEAD
       // welcome screen
       utilsHelper.drawBmp("/welcome.bmp", 0, 0, tft);
       break;
@@ -604,24 +379,6 @@ unsigned long showScreen(uint8_t pages)
     case 5:
       // Out Of Service
       utilsHelper.drawBmp("/outofservice.bmp", 0, 0, tft);
-=======
-=======
->>>>>>> parent of 3e27b21... add firebase
-      // shows welcome screen
-      drawBmp("/1.bmp", 0, 0);
-      break;
-    case 2:
-      // shows Paymnet Sucess
-      drawBmp("/2.bmp", 0, 0);
-      break;
-    case 3:
-      // shows Paymnet Failed
-      drawBmp("/3.bmp", 0, 0);
-      break;
-    case 4:
-      // show Out Of Service
-      drawBmp("/4.bmp", 0, 0);
->>>>>>> parent of 3e27b21... add firebase
       break;
     default:
       // if nothing else matches, do the default
